@@ -6,6 +6,8 @@ import json
 import os
 import queue
 import threading
+import webbrowser
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
@@ -26,7 +28,34 @@ STATIC = ROOT / "static"
 GENERATED = STATIC / GENERATED_DIR_NAME
 GENERATED.mkdir(parents=True, exist_ok=True)
 
-app = FastAPI(title="Insight Scout")
+
+def _browser_url() -> str:
+    host = os.environ.get("INSIGHT_SCOUT_HOST", "127.0.0.1")
+    port = os.environ.get("INSIGHT_SCOUT_PORT", "8765")
+    if host in ("0.0.0.0", "::"):
+        host = "127.0.0.1"
+    return f"http://{host}:{port}"
+
+
+def _should_open_browser() -> bool:
+    raw = os.environ.get("INSIGHT_SCOUT_OPEN_BROWSER", "1").strip().lower()
+    return raw not in ("0", "false", "no", "off")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if _should_open_browser():
+        url = _browser_url()
+        threading.Thread(
+            target=webbrowser.open,
+            args=(url,),
+            name="open-browser",
+            daemon=True,
+        ).start()
+    yield
+
+
+app = FastAPI(title="Insight Scout", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 _run_lock = threading.Lock()
