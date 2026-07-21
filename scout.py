@@ -12,7 +12,7 @@ win_bridge_patch.apply()
 
 from cursor_sdk import Agent, CursorAgentError, LocalAgentOptions
 
-PROMPT = """
+BASE_PROMPT = """
 You are a technical insight scout. Your only job is to find and deliver exactly
 5 insights about NEW or emerging technologies that would make a sharp reader
 stop and say: "I never expected that — and that's amazing."
@@ -71,15 +71,55 @@ Do not pad with fluff. Do not write a preamble or closing essay. Start with
 Insight 1.
 """.strip()
 
+PROMPT = BASE_PROMPT
+
+
+def build_prompt(
+    previous_insights: list[dict[str, str]] | None = None,
+) -> str:
+    """Build the scout prompt, optionally excluding past discoveries."""
+    if not previous_insights:
+        return BASE_PROMPT
+
+    lines = [
+        "",
+        "## Previously delivered insights (DO NOT repeat)",
+        "These insights were already produced in earlier scout runs. You MUST",
+        "find entirely different topics, mechanisms, technologies, and sources.",
+        "Do not rephrase, lightly vary, or revisit the same underlying fact.",
+        "Cross-reference this list before finalizing each insight and discard",
+        "anything that overlaps in topic or core claim.",
+        "",
+    ]
+    for idx, item in enumerate(previous_insights, start=1):
+        title = (item.get("title") or "").strip()
+        takeaway = (item.get("takeaway") or "").strip()
+        if not title:
+            continue
+        line = f"{idx}. **{title}**"
+        if takeaway:
+            line += f" — {takeaway}"
+        lines.append(line)
+
+    lines.append("")
+    return BASE_PROMPT + "\n".join(lines)
+
 
 def iter_scout_events(
     *,
     api_key: str,
     cwd: str | None = None,
+    previous_insights: list[dict[str, str]] | None = None,
 ) -> Iterator[dict[str, Any]]:
     """Yield JSON-serializable events while a scout run executes."""
     workspace = cwd or os.getcwd()
-    yield {"type": "phase", "phase": "starting", "detail": "Launching local agent"}
+    prompt = build_prompt(previous_insights)
+    prior_count = len(previous_insights or [])
+    if prior_count:
+        detail = f"Launching local agent · avoiding {prior_count} past insights"
+    else:
+        detail = "Launching local agent"
+    yield {"type": "phase", "phase": "starting", "detail": detail}
 
     try:
         with Agent.create(
@@ -87,7 +127,7 @@ def iter_scout_events(
             api_key=api_key,
             local=LocalAgentOptions(cwd=workspace),
         ) as agent:
-            run = agent.send(PROMPT)
+            run = agent.send(prompt)
             yield {
                 "type": "started",
                 "agent_id": agent.agent_id,

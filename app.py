@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from history_store import all_previous_insights, delete_run, get_run, list_runs, save_run
 from image_gen import GENERATED_DIR_NAME, generate_insight_image, image_provider
 from scout import iter_scout_events
 
@@ -50,6 +51,26 @@ def health() -> dict[str, bool | str]:
         "api_key_configured": has_key,
         "image_provider": image_provider(),
     }
+
+
+@app.get("/api/history")
+def history_list() -> list[dict]:
+    return list_runs()
+
+
+@app.get("/api/history/{run_id}")
+def history_get(run_id: str) -> dict:
+    record = get_run(run_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return record
+
+
+@app.delete("/api/history/{run_id}")
+def history_delete(run_id: str) -> dict[str, bool]:
+    if not delete_run(run_id):
+        raise HTTPException(status_code=404, detail="Run not found")
+    return {"ok": True}
 
 
 @app.post("/api/insights/image")
@@ -92,8 +113,35 @@ def scout_stream() -> StreamingResponse:
     event_q: queue.Queue[dict | None] = queue.Queue()
 
     def worker() -> None:
+        markdown_buffer = ""
+        agent_id = ""
+        run_id = ""
+        previous = all_previous_insights()
         try:
-            for event in iter_scout_events(api_key=api_key, cwd=str(ROOT)):
+            for event in iter_scout_events(
+                api_key=api_key,
+                cwd=str(ROOT),
+                previous_insights=previous or None,
+            ):
+                if event.get("type") == "text":
+                    markdown_buffer += event.get("text", "")
+                elif event.get("type") == "started":
+                    agent_id = event.get("agent_id", "")
+                    run_id = event.get("run_id", "")
+                elif event.get("type") == "done" and markdown_buffer.strip():
+                    try:
+                        saved = save_run(
+                            markdown=markdown_buffer,
+                            agent_id=agent_id,
+                            run_id=run_id or event.get("run_id", ""),
+                        )
+                        event = {
+                            **event,
+                            "history_id": saved["id"],
+                            "prior_insights_skipped": len(previous),
+                        }
+                    except ValueError:
+                        pass
                 event_q.put(event)
         except Exception as exc:  # noqa: BLE001
             event_q.put(

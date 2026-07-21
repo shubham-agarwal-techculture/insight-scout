@@ -6,24 +6,66 @@ const insightTrack = document.getElementById("insightTrack");
 const emptyState = document.getElementById("emptyState");
 const insightsEl = document.getElementById("insights");
 const errorBox = document.getElementById("errorBox");
+const liveView = document.getElementById("liveView");
+const historyView = document.getElementById("historyView");
+const historyList = document.getElementById("historyList");
+const historyListWrap = document.getElementById("historyListWrap");
+const historyEmpty = document.getElementById("historyEmpty");
+const historyDetail = document.getElementById("historyDetail");
+const historyInsights = document.getElementById("historyInsights");
+const historyDetailMeta = document.getElementById("historyDetailMeta");
+const historyBack = document.getElementById("historyBack");
+const historyCount = document.getElementById("historyCount");
+const viewTabs = document.querySelectorAll(".nav-item");
+const statusChip = document.getElementById("statusChip");
+const statusChipLabel = document.getElementById("statusChipLabel");
+const pageTitle = document.getElementById("pageTitle");
+const pageSubtitle = document.getElementById("pageSubtitle");
+const btnSpinner = scoutBtn?.querySelector(".btn-spinner");
 
 let buffer = "";
+let activeView = "live";
+let historyRuns = [];
 const toolRows = new Map();
 const generatedImages = new Map(); // insight n -> url
 const generatingImages = new Set();
 
 const PHASE_COPY = {
-  starting: ["Booting agent", "Opening local Cursor runtime"],
-  researching: ["Cross-checking sources", "Redundant verification in progress"],
-  writing: ["Composing insights", "Turning verified finds into astonishments"],
-  done: ["Scout complete", "Five dual-sourced insights are ready"],
-  error: ["Scout interrupted", "Something failed — check the message below"],
+  starting: ["Initializing", "Booting local Cursor agent runtime"],
+  researching: ["Researching", "Cross-checking claims across independent sources"],
+  writing: ["Composing", "Drafting verified insights"],
+  done: ["Complete", "Five dual-sourced insights are ready"],
+  error: ["Failed", "Run interrupted — see error details below"],
 };
+
+const STATUS_LABELS = {
+  idle: "Idle",
+  starting: "Initializing",
+  researching: "Researching",
+  writing: "Composing",
+  done: "Complete",
+  error: "Failed",
+};
+
+function setStatusChip(phase) {
+  if (!statusChip || !statusChipLabel) return;
+  const chipPhase =
+    phase === "starting" || phase === "researching" || phase === "writing"
+      ? "running"
+      : phase === "done"
+        ? "done"
+        : phase === "error"
+          ? "error"
+          : "idle";
+  statusChip.className = `status-chip status-${chipPhase}`;
+  statusChipLabel.textContent = STATUS_LABELS[phase] || STATUS_LABELS.idle;
+}
 
 function setPhase(phase, detail) {
   const [label, fallback] = PHASE_COPY[phase] || [phase, detail || ""];
   phaseLabel.textContent = label;
   phaseDetail.textContent = detail || fallback;
+  setStatusChip(phase);
 }
 
 function resetUi() {
@@ -37,9 +79,11 @@ function resetUi() {
   emptyState.hidden = false;
   errorBox.hidden = true;
   errorBox.textContent = "";
+  setStatusChip("idle");
   for (const li of insightTrack.querySelectorAll("li")) {
     li.classList.remove("active", "done");
-    li.querySelector("em").textContent = "Waiting";
+    li.querySelector(".track-title").textContent = "Pending";
+    li.querySelector(".track-state").textContent = "Waiting";
   }
 }
 
@@ -131,63 +175,91 @@ function sanitizeImageUrl(url) {
   }
 }
 
-function renderInsights(markdown, { complete }) {
+function renderInsights(markdown, { complete, container = insightsEl, trackEl = insightTrack } = {}) {
   const items = parseInsights(markdown);
   if (!items.length) return;
 
-  emptyState.hidden = true;
-  insightsEl.hidden = false;
-  insightsEl.innerHTML = "";
+  if (container === insightsEl) {
+    emptyState.hidden = true;
+    insightsEl.hidden = false;
+  }
+  container.innerHTML = "";
 
   const highest = Math.max(...items.map((i) => i.n));
 
   for (const item of items) {
-    const card = document.createElement("article");
-    card.className = "insight-card";
-    card.dataset.insightN = String(item.n);
-    const isWriting = !complete && item.n === highest;
-    if (isWriting) card.classList.add("writing", "cursor-blink");
+    container.appendChild(buildInsightCard(item, { complete, highest, isLive: container === insightsEl }));
+  }
 
-    const resolvedImage = item.image || generatedImages.get(item.n) || "";
-    const needsAi =
-      complete &&
-      !resolvedImage &&
-      Boolean(item.title) &&
-      Boolean(item.takeaway || item.how || item.proof);
-
-    const howIsSameAsTakeaway =
-      item.how && item.takeaway && item.how.trim() === item.takeaway.trim();
-
-    card.innerHTML = `
-      <p class="num">Insight ${String(item.n).padStart(2, "0")}</p>
-      <h2>${escapeHtml(item.title)}</h2>
-      ${imageHtml(resolvedImage, item.title, {
-        generating: needsAi || generatingImages.has(item.n),
-        insightN: item.n,
-        allowFallback: Boolean(item.image) && !generatedImages.has(item.n),
-      })}
-      ${takeawayHtml(item.takeaway)}
-      ${howIsSameAsTakeaway ? "" : bodySectionHtml("How it works", item.how)}
-      ${proofHtml(item.proof)}
-      ${bodySectionHtml("Easy to miss because", item.miss, { compact: true })}
-    `;
-    insightsEl.appendChild(card);
-
-    const track = insightTrack.querySelector(`li[data-n="${item.n}"]`);
-    if (track) {
+  if (trackEl && container === insightsEl) {
+    for (const item of items) {
+      const track = trackEl.querySelector(`li[data-n="${item.n}"]`);
+      if (!track) continue;
+      const isWriting = !complete && item.n === highest;
       track.classList.toggle("active", isWriting);
       track.classList.toggle("done", complete || item.n < highest || Boolean(item.miss));
-      track.querySelector("em").textContent = item.title.slice(0, 42);
-    }
-
-    if (needsAi) {
-      requestAiImage(item);
+      track.querySelector(".track-title").textContent = item.title.slice(0, 48);
+      track.querySelector(".track-state").textContent = isWriting
+        ? "In progress"
+        : complete || item.n < highest
+          ? "Verified"
+          : "Drafting";
     }
   }
 
-  if (!complete && items.length) {
+  if (!complete && items.length && container === insightsEl) {
     setPhase("writing", `Drafting insight ${highest} of 5`);
   }
+}
+
+function buildInsightCard(item, { complete = true, highest = item.n, isLive = false } = {}) {
+  const card = document.createElement("article");
+  card.className = "insight-card";
+  card.dataset.insightN = String(item.n);
+  const isWriting = isLive && !complete && item.n === highest;
+  if (isWriting) card.classList.add("writing", "cursor-blink");
+
+  const resolvedImage = item.image || (isLive ? generatedImages.get(item.n) : "") || "";
+  const needsAi =
+    isLive &&
+    complete &&
+    !resolvedImage &&
+    Boolean(item.title) &&
+    Boolean(item.takeaway || item.how || item.proof);
+
+  const howIsSameAsTakeaway =
+    item.how && item.takeaway && item.how.trim() === item.takeaway.trim();
+
+  const imageBlock = imageHtml(resolvedImage, item.title, {
+    generating: needsAi || (isLive && generatingImages.has(item.n)),
+    insightN: item.n,
+    allowFallback: Boolean(item.image) && !(isLive && generatedImages.has(item.n)),
+  });
+  const hasImage = Boolean(imageBlock);
+
+  card.innerHTML = `
+    <div class="insight-card-header">
+      <span class="insight-badge">${String(item.n).padStart(2, "0")}</span>
+      <h2>${escapeHtml(item.title)}</h2>
+    </div>
+    <div class="insight-card-body">
+      <div class="insight-layout${hasImage ? " has-image" : ""}">
+        ${hasImage ? `<div class="insight-media">${imageBlock}</div>` : ""}
+        <div class="insight-sections">
+          ${takeawayHtml(item.takeaway)}
+          ${howIsSameAsTakeaway ? "" : bodySectionHtml("How it works", item.how)}
+          ${proofHtml(item.proof)}
+          ${bodySectionHtml("Easy to miss because", item.miss, { compact: true })}
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (needsAi) {
+    requestAiImage(item);
+  }
+
+  return card;
 }
 
 function takeawayHtml(text) {
@@ -457,7 +529,15 @@ function handleEvent(event) {
     case "done":
       renderInsights(buffer, { complete: true });
       setPhase("done");
+      if (event.prior_insights_skipped) {
+        pushActivity(
+          `saved to history · avoided ${event.prior_insights_skipped} past insights`
+        );
+      } else {
+        pushActivity("saved to history");
+      }
       pushActivity(`finished · ${event.status}`);
+      loadHistory();
       finishRun(true);
       break;
     case "error":
@@ -472,15 +552,18 @@ function handleEvent(event) {
 function finishRun(ok) {
   scoutBtn.disabled = false;
   scoutBtn.classList.remove("running");
+  if (btnSpinner) btnSpinner.hidden = true;
   scoutBtn.querySelector(".cta-label").textContent = ok
     ? "Scout again"
     : "Try again";
+  if (ok) setStatusChip("done");
 }
 
 async function startScout() {
   resetUi();
   scoutBtn.disabled = true;
   scoutBtn.classList.add("running");
+  if (btnSpinner) btnSpinner.hidden = false;
   scoutBtn.querySelector(".cta-label").textContent = "Scouting…";
   setPhase("starting");
 
@@ -544,8 +627,124 @@ async function startScout() {
 
 scoutBtn.addEventListener("click", () => {
   if (scoutBtn.disabled) return;
+  if (activeView !== "live") {
+    switchView("live");
+  }
   startScout();
 });
+
+function switchView(view) {
+  activeView = view;
+  for (const tab of viewTabs) {
+    tab.classList.toggle("active", tab.dataset.view === view);
+  }
+  liveView.hidden = view !== "live";
+  historyView.hidden = view !== "history";
+
+  if (view === "live") {
+    pageTitle.textContent = "Live scout";
+    pageSubtitle.textContent =
+      "Agent research with real-time progress and verified output";
+  } else {
+    pageTitle.textContent = "Run archive";
+    pageSubtitle.textContent =
+      "Browse past scout runs stored on this machine";
+    loadHistory();
+  }
+}
+
+for (const tab of viewTabs) {
+  tab.addEventListener("click", () => {
+    if (tab.dataset.view === activeView) return;
+    switchView(tab.dataset.view);
+  });
+}
+
+historyBack.addEventListener("click", () => {
+  historyDetail.hidden = true;
+  historyListWrap.hidden = historyRuns.length === 0;
+  historyEmpty.hidden = historyRuns.length > 0;
+});
+
+function formatRunDate(iso) {
+  if (!iso) return "Unknown date";
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+function updateHistoryBadge() {
+  if (!historyCount) return;
+  if (historyRuns.length > 0) {
+    historyCount.hidden = false;
+    historyCount.textContent = String(historyRuns.length);
+  } else {
+    historyCount.hidden = true;
+  }
+}
+
+function renderHistoryList() {
+  historyList.innerHTML = "";
+  historyEmpty.hidden = historyRuns.length > 0;
+  historyListWrap.hidden = historyRuns.length === 0;
+  historyDetail.hidden = true;
+
+  for (const run of historyRuns) {
+    const tr = document.createElement("tr");
+    const topics = (run.titles || [])
+      .map((t) => `<li>${escapeHtml(t)}</li>`)
+      .join("");
+
+    tr.innerHTML = `
+      <td class="cell-date">${escapeHtml(formatRunDate(run.created_at))}</td>
+      <td class="cell-count">${run.insight_count || 0}</td>
+      <td class="cell-topics"><ul>${topics}</ul></td>
+      <td>
+        <button type="button" class="btn-text">View</button>
+      </td>
+    `;
+
+    tr.querySelector(".btn-text").addEventListener("click", () => openHistoryRun(run.id));
+    historyList.appendChild(tr);
+  }
+}
+
+async function openHistoryRun(runId) {
+  try {
+    const response = await fetch(`/api/history/${encodeURIComponent(runId)}`);
+    if (!response.ok) throw new Error(`Failed to load run (${response.status})`);
+    const run = await response.json();
+    historyListWrap.hidden = true;
+    historyEmpty.hidden = true;
+    historyDetail.hidden = false;
+    historyDetailMeta.textContent = `${formatRunDate(run.created_at)} · ${(run.insights || []).length} insights`;
+    historyInsights.innerHTML = "";
+    for (const item of run.insights || []) {
+      historyInsights.appendChild(buildInsightCard(item, { complete: true, isLive: false }));
+    }
+  } catch (err) {
+    showError(err.message || "Could not load history run.");
+  }
+}
+
+async function loadHistory() {
+  try {
+    const response = await fetch("/api/history");
+    if (!response.ok) return;
+    historyRuns = await response.json();
+    updateHistoryBadge();
+    if (activeView === "history") {
+      renderHistoryList();
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 fetch("/api/health")
   .then((r) => r.json())
@@ -556,3 +755,6 @@ fetch("/api/health")
     }
   })
   .catch(() => {});
+
+loadHistory();
+setStatusChip("idle");

@@ -7,62 +7,227 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
-    <div class="atmosphere" aria-hidden="true"></div>
+    <div class="app">
+      <aside class="sidebar" aria-label="Application navigation">
+        <div class="sidebar-brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+              <path d="M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+            </svg>
+          </div>
+          <div>
+            <p class="brand-name">Insight Scout</p>
+            <p class="brand-version">Research console</p>
+          </div>
+        </div>
 
-    <header class="top">
-      <div class="brand-block">
-        <p class="brand">Insight Scout</p>
-        <p class="tag">Five verified technological astonishments</p>
+        <nav class="sidebar-nav">
+          <button type="button" class="nav-item active" data-view="live">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            Live scout
+          </button>
+          <button type="button" class="nav-item" data-view="history">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M3 3v5h5" />
+              <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+            History
+            <span id="historyCount" class="nav-badge" hidden>0</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="sidebar-stat">
+            <span class="stat-label">Verification</span>
+            <span class="stat-value">Dual-source</span>
+          </div>
+          <div class="sidebar-stat">
+            <span class="stat-label">Output</span>
+            <span class="stat-value">5 insights / run</span>
+          </div>
+        </div>
+      </aside>
+
+      <div class="workspace">
+        <header class="toolbar">
+          <div class="toolbar-left">
+            <h1 id="pageTitle" class="page-title">Live scout</h1>
+            <p id="pageSubtitle" class="page-subtitle">
+              Agent research with real-time progress and verified output
+            </p>
+          </div>
+          <div class="toolbar-right">
+            <div id="statusChip" class="status-chip status-idle">
+              <span class="status-dot" aria-hidden="true"></span>
+              <span id="statusChipLabel">Idle</span>
+            </div>
+            <button type="button" id="scoutBtn" class="btn btn-primary">
+              <span class="cta-label">Start scout</span>
+              <span class="btn-spinner" aria-hidden="true" hidden></span>
+            </button>
+          </div>
+        </header>
+
+        <main class="content" id="liveView">
+          <div class="live-grid">
+            <aside class="panel panel-rail" aria-label="Run progress">
+              <div class="panel-header">
+                <h2 class="panel-title">Run status</h2>
+              </div>
+              <div class="panel-body">
+                <div class="status-card">
+                  <p id="phaseLabel" class="phase-label">Ready when you are</p>
+                  <p id="phaseDetail" class="phase-detail">
+                    The agent searches, cross-checks sources, then composes five
+                    verified technical insights.
+                  </p>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="track-section">
+                  <h3 class="section-label">Insight pipeline</h3>
+                  <ol id="insightTrack" class="insight-track" aria-label="Insight tracker">
+                    <li data-n="1">
+                      <span class="track-num">01</span>
+                      <span class="track-body">
+                        <em class="track-title">Pending</em>
+                        <span class="track-state">Waiting</span>
+                      </span>
+                    </li>
+                    <li data-n="2">
+                      <span class="track-num">02</span>
+                      <span class="track-body">
+                        <em class="track-title">Pending</em>
+                        <span class="track-state">Waiting</span>
+                      </span>
+                    </li>
+                    <li data-n="3">
+                      <span class="track-num">03</span>
+                      <span class="track-body">
+                        <em class="track-title">Pending</em>
+                        <span class="track-state">Waiting</span>
+                      </span>
+                    </li>
+                    <li data-n="4">
+                      <span class="track-num">04</span>
+                      <span class="track-body">
+                        <em class="track-title">Pending</em>
+                        <span class="track-state">Waiting</span>
+                      </span>
+                    </li>
+                    <li data-n="5">
+                      <span class="track-num">05</span>
+                      <span class="track-body">
+                        <em class="track-title">Pending</em>
+                        <span class="track-state">Waiting</span>
+                      </span>
+                    </li>
+                  </ol>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="activity-section">
+                  <h3 class="section-label">Activity log</h3>
+                  <ul id="activityLog" class="activity-log"></ul>
+                </div>
+              </div>
+            </aside>
+
+            <section class="panel panel-feed" aria-live="polite">
+              <div class="panel-header">
+                <h2 class="panel-title">Insights</h2>
+                <span class="panel-meta">Streamed output</span>
+              </div>
+              <div class="panel-body feed-body">
+                <div id="emptyState" class="empty-state">
+                  <div class="empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+                      <rect x="9" y="3" width="6" height="4" rx="1" />
+                      <path d="M9 12h6M9 16h4" />
+                    </svg>
+                  </div>
+                  <h3>No insights yet</h3>
+                  <p>
+                    Start a scout to begin research. Verified insights will
+                    appear here as the agent completes each one.
+                  </p>
+                </div>
+                <div id="insights" class="insights" hidden></div>
+                <div id="errorBox" class="alert alert-error" hidden role="alert"></div>
+              </div>
+            </section>
+          </div>
+        </main>
+
+        <main class="content" id="historyView" hidden>
+          <div class="panel panel-history">
+            <div class="panel-header panel-header-split">
+              <div>
+                <h2 class="panel-title">Run archive</h2>
+                <p class="panel-desc">
+                  Completed runs are stored locally. New scouts cross-reference
+                  this archive to avoid repeating topics.
+                </p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div id="historyEmpty" class="empty-state empty-state-compact" hidden>
+                <div class="empty-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M3 3v5h5" />
+                    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                  </svg>
+                </div>
+                <h3>No archived runs</h3>
+                <p>Complete a scout and it will be saved here automatically.</p>
+              </div>
+
+              <div id="historyListWrap" class="table-wrap">
+                <table class="data-table" aria-label="Scout history">
+                  <thead>
+                    <tr>
+                      <th scope="col">Date</th>
+                      <th scope="col">Insights</th>
+                      <th scope="col">Topics</th>
+                      <th scope="col"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="historyList"></tbody>
+                </table>
+              </div>
+
+              <div id="historyDetail" class="history-detail" hidden>
+                <div class="detail-toolbar">
+                  <button type="button" id="historyBack" class="btn btn-ghost">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" aria-hidden="true">
+                      <path d="M19 12H5M12 19l-7-7 7-7" />
+                    </svg>
+                    Back to archive
+                  </button>
+                  <p id="historyDetailMeta" class="detail-meta"></p>
+                </div>
+                <div id="historyInsights" class="insights"></div>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
-      <button type="button" id="scoutBtn" class="cta">
-        <span class="cta-label">Start scout</span>
-        <span class="cta-pulse" aria-hidden="true"></span>
-      </button>
-    </header>
-
-    <main class="stage">
-      <section class="rail" aria-label="Run progress">
-        <div class="phase-card">
-          <p class="eyebrow">Status</p>
-          <p id="phaseLabel" class="phase-label">Ready when you are</p>
-          <p id="phaseDetail" class="phase-detail">
-            The agent will search, cross-check, then write five mind-bending
-            but legitimate technical insights.
-          </p>
-        </div>
-
-        <ol id="insightTrack" class="insight-track" aria-label="Insight tracker">
-          <li data-n="1"><span>01</span><em>Waiting</em></li>
-          <li data-n="2"><span>02</span><em>Waiting</em></li>
-          <li data-n="3"><span>03</span><em>Waiting</em></li>
-          <li data-n="4"><span>04</span><em>Waiting</em></li>
-          <li data-n="5"><span>05</span><em>Waiting</em></li>
-        </ol>
-
-        <div class="activity">
-          <p class="eyebrow">Live activity</p>
-          <ul id="activityLog" class="activity-log"></ul>
-        </div>
-      </section>
-
-      <section class="feed" aria-live="polite">
-        <div id="emptyState" class="empty">
-          <h1>Follow the astonishment as it forms</h1>
-          <p>
-            Hit Start scout. Watch research steps land in the rail, then read
-            each insight the moment it clears dual-source verification.
-          </p>
-        </div>
-        <div id="insights" class="insights" hidden></div>
-        <div id="errorBox" class="error-box" hidden></div>
-      </section>
-    </main>
+    </div>
 
     <script src="/static/app.js"></script>
   </body>
