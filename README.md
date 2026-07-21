@@ -15,7 +15,7 @@ Each insight must feel mind-blowing in a **positive, unexpected** way, and must 
    - run phase (starting → researching → writing → done)
    - live tool / activity log
    - insight tracker `01`–`05`
-   - readable cards: optional **image**, **The twist**, **Why it's legit**, **Why you'd miss it**
+   - readable cards: optional **image**, **In short**, **How it works**, **Proof**, **Easy to miss because**
 
 A CLI entrypoint is also included for terminal-only runs.
 
@@ -148,12 +148,20 @@ The shared prompt in `scout.py` enforces:
 - Structured markdown output:
 
 ```markdown
-### Insight N: <title>
-- **The twist:** ...
-- **Why it's legit:** ...
-- **Why you'd miss it:** ...
+### Insight N: <plain title>
+- **In short:** ...
+- **How it works:**
+  - ...
+  - ...
+  - ...
+- **Proof:**
+  - [Source title](https://…)
+  - [Source title](https://…)
+- **Easy to miss because:** ...
 - **Image:** https://…/figure.png   # or `none`
 ```
+
+The prompt also enforces plain, scannable writing (lead with the conclusion, short sentences, everyday words, bullets over walls of text) so the insight stays intact without dense jargon.
 
 The UI parses that shape live as text streams in and shows the image on each card when a valid `http(s)` URL is present. If the image is missing or fails to load, the UI calls **`POST /api/insights/image`** to generate an AI visual from the title + twist (cached under `static/generated/`).
 

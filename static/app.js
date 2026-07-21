@@ -59,17 +59,6 @@ function showError(message) {
   setPhase("error", message);
 }
 
-function linkify(text) {
-  const escaped = text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-  return escaped.replace(
-    /(https?:\/\/[^\s)]+)/g,
-    '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
-  );
-}
-
 function parseInsights(markdown) {
   const parts = markdown.split(/^###\s+Insight\s+(\d+)\s*:\s*/im);
   const items = [];
@@ -78,18 +67,36 @@ function parseInsights(markdown) {
     const body = parts[i + 1] || "";
     const titleMatch = body.match(/^([^\n]+)/);
     const title = (titleMatch ? titleMatch[1] : `Insight ${n}`).trim();
-    const twist = extractField(body, "The twist");
-    const legit = extractField(body, "Why it's legit");
-    const miss = extractField(body, "Why you'd miss it");
+    const takeaway =
+      extractField(body, "In short") || extractField(body, "The twist");
+    const how =
+      extractField(body, "How it works") ||
+      extractField(body, "The twist");
+    const proof =
+      extractField(body, "Proof") || extractField(body, "Why it's legit");
+    const miss =
+      extractField(body, "Easy to miss because") ||
+      extractField(body, "Why you'd miss it");
     const image = extractImageUrl(body);
-    items.push({ n, title, twist, legit, miss, image, raw: body.trim() });
+    items.push({
+      n,
+      title,
+      takeaway,
+      how,
+      proof,
+      miss,
+      twist: takeaway,
+      image,
+      raw: body.trim(),
+    });
   }
   return items;
 }
 
 function extractField(body, label) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const re = new RegExp(
-    `\\*\\*${label}:\\*\\*\\s*([\\s\\S]*?)(?=\\n\\s*-\\s*\\*\\*|\\n###|$)`,
+    `\\*\\*${escaped}:\\*\\*\\s*([\\s\\S]*?)(?=\\n\\s*-\\s*\\*\\*|\\n###|$)`,
     "i"
   );
   const m = body.match(re);
@@ -146,7 +153,10 @@ function renderInsights(markdown, { complete }) {
       complete &&
       !resolvedImage &&
       Boolean(item.title) &&
-      Boolean(item.twist || item.legit);
+      Boolean(item.takeaway || item.how || item.proof);
+
+    const howIsSameAsTakeaway =
+      item.how && item.takeaway && item.how.trim() === item.takeaway.trim();
 
     card.innerHTML = `
       <p class="num">Insight ${String(item.n).padStart(2, "0")}</p>
@@ -156,9 +166,10 @@ function renderInsights(markdown, { complete }) {
         insightN: item.n,
         allowFallback: Boolean(item.image) && !generatedImages.has(item.n),
       })}
-      ${sectionHtml("The twist", item.twist)}
-      ${sectionHtml("Why it's legit", item.legit)}
-      ${sectionHtml("Why you'd miss it", item.miss)}
+      ${takeawayHtml(item.takeaway)}
+      ${howIsSameAsTakeaway ? "" : bodySectionHtml("How it works", item.how)}
+      ${proofHtml(item.proof)}
+      ${bodySectionHtml("Easy to miss because", item.miss, { compact: true })}
     `;
     insightsEl.appendChild(card);
 
@@ -179,14 +190,118 @@ function renderInsights(markdown, { complete }) {
   }
 }
 
-function sectionHtml(label, text) {
+function takeawayHtml(text) {
   if (!text) return "";
+  const clean = stripLeadingBullets(text);
   return `
-    <div class="section">
-      <strong>${label}</strong>
-      <p>${linkify(text)}</p>
+    <div class="section takeaway">
+      <strong>In short</strong>
+      <p>${inlineMarkdown(clean)}</p>
     </div>
   `;
+}
+
+function bodySectionHtml(label, text, { compact = false } = {}) {
+  if (!text) return "";
+  const bullets = parseBulletLines(text);
+  const body =
+    bullets.length >= 2
+      ? `<ul class="insight-bullets">${bullets
+          .map((line) => `<li>${inlineMarkdown(line)}</li>`)
+          .join("")}</ul>`
+      : `<p>${inlineMarkdown(stripLeadingBullets(text))}</p>`;
+  return `
+    <div class="section${compact ? " is-compact" : ""}">
+      <strong>${label}</strong>
+      ${body}
+    </div>
+  `;
+}
+
+function proofHtml(text) {
+  if (!text) return "";
+  const links = parseSourceLinks(text);
+  if (links.length) {
+    return `
+      <div class="section sources">
+        <strong>Proof</strong>
+        <ul class="source-list">
+          ${links
+            .map(
+              (s) =>
+                `<li><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a></li>`
+            )
+            .join("")}
+        </ul>
+      </div>
+    `;
+  }
+  return bodySectionHtml("Proof", text);
+}
+
+function parseBulletLines(text) {
+  const lines = text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const bullets = lines
+    .map((line) => line.replace(/^[-*•]\s+/, "").trim())
+    .filter(Boolean);
+  const lookedLikeList = lines.filter((line) => /^[-*•]\s+/.test(line)).length;
+  return lookedLikeList >= 2 ? bullets : [];
+}
+
+function stripLeadingBullets(text) {
+  return text
+    .split(/\n+/)
+    .map((line) => line.replace(/^[-*•]\s+/, "").trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function parseSourceLinks(text) {
+  const links = [];
+  const mdRe = /\[([^\]]+)\]\(\s*(https?:\/\/[^)\s]+)\s*\)/gi;
+  let m;
+  while ((m = mdRe.exec(text)) !== null) {
+    links.push({ title: m[1].trim(), url: sanitizeImageUrl(m[2]) || m[2] });
+  }
+  if (links.length) return links.filter((s) => s.url);
+
+  const bare = text.match(/https?:\/\/[^\s)<>"']+/gi) || [];
+  return bare.map((url, i) => ({
+    title: `Source ${i + 1}`,
+    url: sanitizeImageUrl(url) || url,
+  }));
+}
+
+function inlineMarkdown(text) {
+  const placeholders = [];
+  let escaped = escapeHtml(text);
+
+  escaped = escaped.replace(
+    /\[([^\]]+)\]\(\s*(https?:\/\/[^)\s]+)\s*\)/gi,
+    (_, title, url) => {
+      const i = placeholders.length;
+      placeholders.push(
+        `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${title}</a>`
+      );
+      return `\u0000L${i}\u0000`;
+    }
+  );
+
+  escaped = escaped
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>")
+    .replace(/(https?:\/\/[^\s)<]+)/g, (url) => {
+      const i = placeholders.length;
+      placeholders.push(
+        `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`
+      );
+      return `\u0000L${i}\u0000`;
+    });
+
+  return escaped.replace(/\u0000L(\d+)\u0000/g, (_, i) => placeholders[Number(i)]);
 }
 
 function imageHtml(url, title, { generating = false, insightN = 0, allowFallback = false } = {}) {
@@ -223,8 +338,11 @@ function onAiImageFallback(img, insightN) {
   const title = card.querySelector("h2")?.textContent?.trim() || "";
   const twist =
     [...card.querySelectorAll(".section")]
-      .find((s) => s.querySelector("strong")?.textContent === "The twist")
-      ?.querySelector("p")?.textContent?.trim() || "";
+      .find((s) => {
+        const label = s.querySelector("strong")?.textContent || "";
+        return label === "In short" || label === "The twist" || label === "How it works";
+      })
+      ?.querySelector("p, li")?.textContent?.trim() || "";
   const figure = img.closest("figure");
   figure.classList.add("is-generating");
   figure.innerHTML = `<div class="image-placeholder">Generating visual…</div>`;
@@ -245,7 +363,7 @@ async function requestAiImage(item) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: item.title,
-        twist: item.twist || "",
+        twist: item.takeaway || item.how || "",
         insight_n: n,
       }),
     });

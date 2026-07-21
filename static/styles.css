@@ -338,7 +338,7 @@ body {
 
 .insight-card {
   border-radius: 18px;
-  padding: 1.25rem 1.3rem 1.35rem;
+  padding: 1.35rem 1.4rem 1.5rem;
   animation: cardIn 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
@@ -366,16 +366,17 @@ body {
 }
 
 .insight-card h2 {
-  margin: 0 0 0.9rem;
+  margin: 0 0 1rem;
+  max-width: 22ch;
   font-family: var(--font-display);
-  font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+  font-size: clamp(1.4rem, 2.5vw, 1.85rem);
   font-weight: 600;
   letter-spacing: -0.02em;
-  line-height: 1.15;
+  line-height: 1.18;
 }
 
 .insight-image {
-  margin: 0 0 1rem;
+  margin: 0 0 1.15rem;
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid rgba(18, 32, 28, 0.08);
@@ -388,7 +389,7 @@ body {
 .insight-image img {
   display: block;
   width: 100%;
-  max-height: 320px;
+  max-height: 300px;
   object-fit: cover;
   object-position: center;
 }
@@ -439,24 +440,86 @@ body {
 }
 
 .insight-card .section {
-  margin-top: 0.85rem;
+  margin-top: 1.05rem;
+  max-width: 62ch;
+}
+
+.insight-card .section + .section {
+  padding-top: 0.95rem;
+  border-top: 1px solid rgba(18, 32, 28, 0.08);
 }
 
 .insight-card .section strong {
   display: block;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
+  font-size: 0.7rem;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--signal-deep);
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.4rem;
 }
 
 .insight-card .section p {
   margin: 0;
   color: var(--ink);
+  font-size: 1.02rem;
   line-height: 1.55;
-  white-space: pre-wrap;
+}
+
+.insight-card .takeaway p {
+  font-family: var(--font-display);
+  font-size: clamp(1.12rem, 2vw, 1.28rem);
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.insight-card .section.is-compact p {
+  font-size: 0.95rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.insight-bullets,
+.source-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.insight-bullets li {
+  position: relative;
+  padding-left: 1.05rem;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.insight-bullets li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 50%;
+  background: var(--teal);
+}
+
+.source-list {
+  gap: 0.4rem;
+}
+
+.source-list li a {
+  display: inline;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  color: var(--teal);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
 }
 
 .insight-card a {

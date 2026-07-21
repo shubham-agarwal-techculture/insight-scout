@@ -14,8 +14,8 @@ from cursor_sdk import Agent, CursorAgentError, LocalAgentOptions
 
 PROMPT = """
 You are a technical insight scout. Your only job is to find and deliver exactly
-5 insights about NEW or emerging technologies that would make a sharp technical
-reader stop and say: "I never expected that — and that's amazing."
+5 insights about NEW or emerging technologies that would make a sharp reader
+stop and say: "I never expected that — and that's amazing."
 
 ## What "astonishing" means here
 - Unexpected: the reader would not have guessed this from common headlines.
@@ -37,14 +37,30 @@ reader stop and say: "I never expected that — and that's amazing."
    suddenly became practically relevant in a surprising way.
 5. Use web search / browsing freely. Cite sources with titles and URLs.
 
-## Output format
-Return exactly 5 insights. For each:
+## Writing for effortless reading (non-negotiable)
+Follow web-writing research (plain language, inverted pyramid, scannable text):
+- Lead with the conclusion. First line = the surprising fact.
+- Use everyday words. If a technical term is required, explain it in the same
+  sentence in plain English.
+- Keep sentences short (aim under 22 words). One idea per sentence or bullet.
+- Keep every real number, name, and mechanism — just say them simply.
+- No academic throat-clearing, no stacked jargon, no marketing hype.
+- Prefer bullets over long paragraphs. Never write a wall of text.
 
-### Insight N: <short punchy title>
-- **The twist:** 2–4 sentences. Lead with the counterintuitive fact, then the
-  technical why. Write so a senior engineer feels the "wait — really?" moment.
-- **Why it's legit:** name the independent sources that agree (title + URL).
-- **Why you'd miss it:** one sentence on what popular narrative this breaks.
+## Output format
+Return exactly 5 insights. For each, use this exact shape:
+
+### Insight N: <plain title, max 8 words>
+- **In short:** One sentence. The surprising fact in plain words. A smart
+  non-specialist should get it on first read.
+- **How it works:** Exactly 3 bullets. Each bullet is one short sentence.
+  Bullet 1 = what happened / the result (include the key number if any).
+  Bullet 2 = the simple mechanism (how/why, in plain English).
+  Bullet 3 = why that mechanism is surprising or elegant.
+- **Proof:** Exactly 2 lines, each: `[Source title](https://url)` — one line
+  per independent source that agrees on the core claim.
+- **Easy to miss because:** One short sentence on the popular narrative this
+  quietly breaks.
 - **Image:** a single direct https URL to a relevant figure, diagram, photo, or
   illustration (PNG/JPG/WebP/GIF/SVG). Prefer an image from one of the cited
   sources (press kit, paper figure, lab photo). Never invent a URL. If no
