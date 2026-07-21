@@ -374,6 +374,70 @@ body {
   line-height: 1.15;
 }
 
+.insight-image {
+  margin: 0 0 1rem;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(18, 32, 28, 0.08);
+  background:
+    linear-gradient(135deg, rgba(15, 118, 110, 0.06), rgba(232, 93, 4, 0.05)),
+    rgba(255, 255, 255, 0.55);
+  animation: imageReveal 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.insight-image img {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  object-position: center;
+}
+
+.insight-image.is-generating {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+}
+
+.image-placeholder {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  animation: pulseLabel 1.2s ease-in-out infinite;
+}
+
+.image-caption {
+  margin: 0;
+  padding: 0.4rem 0.7rem 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+@keyframes pulseLabel {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes imageReveal {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .insight-card .section {
   margin-top: 0.85rem;
 }

@@ -8,22 +8,33 @@ import queue
 import threading
 from pathlib import Path
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
+from image_gen import GENERATED_DIR_NAME, generate_insight_image, image_provider
 from scout import iter_scout_events
 
 load_dotenv()
 
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
+GENERATED = STATIC / GENERATED_DIR_NAME
+GENERATED.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="Insight Scout")
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 _run_lock = threading.Lock()
+
+
+class ImageRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=240)
+    twist: str = Field(default="", max_length=1200)
+    insight_n: int | None = Field(default=None, ge=1, le=5)
 
 
 @app.get("/")
@@ -34,7 +45,33 @@ def index() -> FileResponse:
 @app.get("/api/health")
 def health() -> dict[str, bool | str]:
     has_key = bool(os.environ.get("CURSOR_API_KEY", "").strip())
-    return {"ok": True, "api_key_configured": has_key}
+    return {
+        "ok": True,
+        "api_key_configured": has_key,
+        "image_provider": image_provider(),
+    }
+
+
+@app.post("/api/insights/image")
+def create_insight_image(body: ImageRequest) -> dict[str, str]:
+    try:
+        return generate_insight_image(
+            title=body.title.strip(),
+            twist=body.twist.strip(),
+            insight_n=body.insight_n,
+            output_dir=GENERATED,
+        )
+    except httpx.HTTPStatusError as err:
+        detail = f"Image provider HTTP {err.response.status_code}"
+        try:
+            payload = err.response.json()
+            if isinstance(payload, dict) and payload.get("error"):
+                detail = str(payload["error"])
+        except Exception:  # noqa: BLE001
+            pass
+        raise HTTPException(status_code=502, detail=detail) from err
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.get("/api/scout/stream")

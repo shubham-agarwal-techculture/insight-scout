@@ -15,7 +15,7 @@ Each insight must feel mind-blowing in a **positive, unexpected** way, and must 
    - run phase (starting → researching → writing → done)
    - live tool / activity log
    - insight tracker `01`–`05`
-   - readable cards: **The twist**, **Why it's legit**, **Why you'd miss it**
+   - readable cards: optional **image**, **The twist**, **Why it's legit**, **Why you'd miss it**
 
 A CLI entrypoint is also included for terminal-only runs.
 
@@ -38,12 +38,14 @@ A CLI entrypoint is also included for terminal-only runs.
 cursor-sdk-proj/
 ├── app.py                 # FastAPI web server + SSE stream
 ├── scout.py               # Shared prompt + agent event iterator
+├── image_gen.py           # AI image generation (OpenAI / Pollinations)
 ├── insights_agent.py      # CLI runner (same agent as the UI)
 ├── win_bridge_patch.py    # Windows fix for cursor-sdk bridge discovery
 ├── static/
 │   ├── index.html         # Insight Scout UI shell
 │   ├── styles.css         # Layout and motion
-│   └── app.js             # Live stream client + insight parsing
+│   ├── app.js             # Live stream client + insight parsing
+│   └── generated/         # Cached AI visuals (gitignored)
 ├── requirements.txt
 ├── .env.example
 └── .gitignore
@@ -107,8 +109,9 @@ Click **Start scout**. The left rail shows status and live activity; the main pa
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/` | Web UI |
-| `GET` | `/api/health` | `{ ok, api_key_configured }` |
+| `GET` | `/api/health` | `{ ok, api_key_configured, image_provider }` |
 | `GET` | `/api/scout/stream` | SSE stream of scout events (one run at a time) |
+| `POST` | `/api/insights/image` | Generate/cache an AI image for an insight (`title`, optional `twist`, `insight_n`) |
 | `GET` | `/static/*` | UI assets |
 
 Only **one scout run** can be active at a time. A second request while a run is in progress returns `409`.
@@ -149,9 +152,17 @@ The shared prompt in `scout.py` enforces:
 - **The twist:** ...
 - **Why it's legit:** ...
 - **Why you'd miss it:** ...
+- **Image:** https://…/figure.png   # or `none`
 ```
 
-The UI parses that shape live as text streams in.
+The UI parses that shape live as text streams in and shows the image on each card when a valid `http(s)` URL is present. If the image is missing or fails to load, the UI calls **`POST /api/insights/image`** to generate an AI visual from the title + twist (cached under `static/generated/`).
+
+**Image providers**
+
+| Priority | Provider | When |
+| --- | --- | --- |
+| 1 | OpenAI Images (`dall-e-3` by default) | `OPENAI_API_KEY` is set |
+| 2 | [Pollinations](https://pollinations.ai) (Flux) | No OpenAI key — works out of the box |
 
 ---
 

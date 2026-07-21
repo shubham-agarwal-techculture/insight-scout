@@ -45,6 +45,11 @@ Return exactly 5 insights. For each:
   technical why. Write so a senior engineer feels the "wait — really?" moment.
 - **Why it's legit:** name the independent sources that agree (title + URL).
 - **Why you'd miss it:** one sentence on what popular narrative this breaks.
+- **Image:** a single direct https URL to a relevant figure, diagram, photo, or
+  illustration (PNG/JPG/WebP/GIF/SVG). Prefer an image from one of the cited
+  sources (press kit, paper figure, lab photo). Never invent a URL. If no
+  trustworthy direct image URL exists, write `none` — the UI will generate an
+  AI illustration automatically.
 
 Do not pad with fluff. Do not write a preamble or closing essay. Start with
 Insight 1.

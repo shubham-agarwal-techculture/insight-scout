@@ -9,6 +9,8 @@ const errorBox = document.getElementById("errorBox");
 
 let buffer = "";
 const toolRows = new Map();
+const generatedImages = new Map(); // insight n -> url
+const generatingImages = new Set();
 
 const PHASE_COPY = {
   starting: ["Booting agent", "Opening local Cursor runtime"],
@@ -27,6 +29,8 @@ function setPhase(phase, detail) {
 function resetUi() {
   buffer = "";
   toolRows.clear();
+  generatedImages.clear();
+  generatingImages.clear();
   activityLog.innerHTML = "";
   insightsEl.innerHTML = "";
   insightsEl.hidden = true;
@@ -77,7 +81,8 @@ function parseInsights(markdown) {
     const twist = extractField(body, "The twist");
     const legit = extractField(body, "Why it's legit");
     const miss = extractField(body, "Why you'd miss it");
-    items.push({ n, title, twist, legit, miss, raw: body.trim() });
+    const image = extractImageUrl(body);
+    items.push({ n, title, twist, legit, miss, image, raw: body.trim() });
   }
   return items;
 }
@@ -89,6 +94,34 @@ function extractField(body, label) {
   );
   const m = body.match(re);
   return m ? m[1].trim() : "";
+}
+
+function extractImageUrl(body) {
+  const field = extractField(body, "Image");
+  const fromField = firstHttpUrl(field);
+  if (fromField) return fromField;
+
+  const md = body.match(/!\[[^\]]*]\(\s*(https?:\/\/[^)\s]+)\s*\)/i);
+  if (md) return sanitizeImageUrl(md[1]);
+
+  return "";
+}
+
+function firstHttpUrl(text) {
+  if (!text) return "";
+  const cleaned = text.replace(/^none\b.*/i, "").trim();
+  const m = cleaned.match(/https?:\/\/[^\s)<>"']+/i);
+  return m ? sanitizeImageUrl(m[0]) : "";
+}
+
+function sanitizeImageUrl(url) {
+  try {
+    const parsed = new URL(url.replace(/[.,;:]+$/, ""));
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+    return parsed.href;
+  } catch {
+    return "";
+  }
 }
 
 function renderInsights(markdown, { complete }) {
@@ -104,12 +137,25 @@ function renderInsights(markdown, { complete }) {
   for (const item of items) {
     const card = document.createElement("article");
     card.className = "insight-card";
+    card.dataset.insightN = String(item.n);
     const isWriting = !complete && item.n === highest;
     if (isWriting) card.classList.add("writing", "cursor-blink");
+
+    const resolvedImage = item.image || generatedImages.get(item.n) || "";
+    const needsAi =
+      complete &&
+      !resolvedImage &&
+      Boolean(item.title) &&
+      Boolean(item.twist || item.legit);
 
     card.innerHTML = `
       <p class="num">Insight ${String(item.n).padStart(2, "0")}</p>
       <h2>${escapeHtml(item.title)}</h2>
+      ${imageHtml(resolvedImage, item.title, {
+        generating: needsAi || generatingImages.has(item.n),
+        insightN: item.n,
+        allowFallback: Boolean(item.image) && !generatedImages.has(item.n),
+      })}
       ${sectionHtml("The twist", item.twist)}
       ${sectionHtml("Why it's legit", item.legit)}
       ${sectionHtml("Why you'd miss it", item.miss)}
@@ -121,6 +167,10 @@ function renderInsights(markdown, { complete }) {
       track.classList.toggle("active", isWriting);
       track.classList.toggle("done", complete || item.n < highest || Boolean(item.miss));
       track.querySelector("em").textContent = item.title.slice(0, 42);
+    }
+
+    if (needsAi) {
+      requestAiImage(item);
     }
   }
 
@@ -138,6 +188,113 @@ function sectionHtml(label, text) {
     </div>
   `;
 }
+
+function imageHtml(url, title, { generating = false, insightN = 0, allowFallback = false } = {}) {
+  if (!url && generating) {
+    return `
+      <figure class="insight-image is-generating" data-insight-n="${insightN}">
+        <div class="image-placeholder">Generating visual…</div>
+      </figure>
+    `;
+  }
+  if (!url) return "";
+  const onerror = allowFallback
+    ? `onAiImageFallback(this, ${Number(insightN)})`
+    : `this.closest('figure').hidden = true`;
+  return `
+    <figure class="insight-image" data-insight-n="${insightN}">
+      <img
+        src="${escapeHtml(url)}"
+        alt="${escapeHtml(title)} visual"
+        loading="lazy"
+        referrerpolicy="no-referrer"
+        onerror="${onerror}"
+      />
+    </figure>
+  `;
+}
+
+function onAiImageFallback(img, insightN) {
+  const card = img.closest(".insight-card");
+  if (!card) {
+    img.closest("figure").hidden = true;
+    return;
+  }
+  const title = card.querySelector("h2")?.textContent?.trim() || "";
+  const twist =
+    [...card.querySelectorAll(".section")]
+      .find((s) => s.querySelector("strong")?.textContent === "The twist")
+      ?.querySelector("p")?.textContent?.trim() || "";
+  const figure = img.closest("figure");
+  figure.classList.add("is-generating");
+  figure.innerHTML = `<div class="image-placeholder">Generating visual…</div>`;
+  requestAiImage({ n: insightN, title, twist, image: "" });
+}
+
+async function requestAiImage(item) {
+  const n = item.n;
+  if (!n || generatedImages.has(n) || generatingImages.has(n)) return;
+  if (!item.title) return;
+
+  generatingImages.add(n);
+  pushActivity(`generating image · insight ${String(n).padStart(2, "0")}`);
+
+  try {
+    const response = await fetch("/api/insights/image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: item.title,
+        twist: item.twist || "",
+        insight_n: n,
+      }),
+    });
+    if (!response.ok) {
+      let detail = `Image generation failed (${response.status})`;
+      try {
+        const body = await response.json();
+        if (body.detail) detail = typeof body.detail === "string" ? body.detail : detail;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(detail);
+    }
+    const data = await response.json();
+    if (!data.url) throw new Error("No image URL returned");
+    generatedImages.set(n, data.url);
+    applyGeneratedImage(n, data.url, data.provider || "ai");
+  } catch (err) {
+    pushActivity(`image failed · insight ${String(n).padStart(2, "0")}: ${err.message}`);
+    const figure = insightsEl.querySelector(
+      `.insight-image[data-insight-n="${n}"]`
+    );
+    if (figure) figure.hidden = true;
+  } finally {
+    generatingImages.delete(n);
+  }
+}
+
+function applyGeneratedImage(n, url, provider) {
+  const figure = insightsEl.querySelector(`.insight-image[data-insight-n="${n}"]`);
+  if (!figure) return;
+  const title =
+    figure.closest(".insight-card")?.querySelector("h2")?.textContent?.trim() ||
+    `Insight ${n}`;
+  figure.classList.remove("is-generating");
+  figure.hidden = false;
+  figure.innerHTML = `
+    <img
+      src="${escapeHtml(url)}"
+      alt="${escapeHtml(title)} visual"
+      loading="lazy"
+      onerror="this.closest('figure').hidden = true"
+    />
+    <figcaption class="image-caption">AI visual · ${escapeHtml(provider)}</figcaption>
+  `;
+  pushActivity(`image ready · insight ${String(n).padStart(2, "0")} · ${provider}`);
+}
+
+window.onAiImageFallback = onAiImageFallback;
 
 function escapeHtml(value) {
   return value
