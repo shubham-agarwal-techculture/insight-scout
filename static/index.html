@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Insight Scout</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true"></div>
+
+    <header class="top">
+      <div class="brand-block">
+        <p class="brand">Insight Scout</p>
+        <p class="tag">Five verified technological astonishments</p>
+      </div>
+      <button type="button" id="scoutBtn" class="cta">
+        <span class="cta-label">Start scout</span>
+        <span class="cta-pulse" aria-hidden="true"></span>
+      </button>
+    </header>
+
+    <main class="stage">
+      <section class="rail" aria-label="Run progress">
+        <div class="phase-card">
+          <p class="eyebrow">Status</p>
+          <p id="phaseLabel" class="phase-label">Ready when you are</p>
+          <p id="phaseDetail" class="phase-detail">
+            The agent will search, cross-check, then write five mind-bending
+            but legitimate technical insights.
+          </p>
+        </div>
+
+        <ol id="insightTrack" class="insight-track" aria-label="Insight tracker">
+          <li data-n="1"><span>01</span><em>Waiting</em></li>
+          <li data-n="2"><span>02</span><em>Waiting</em></li>
+          <li data-n="3"><span>03</span><em>Waiting</em></li>
+          <li data-n="4"><span>04</span><em>Waiting</em></li>
+          <li data-n="5"><span>05</span><em>Waiting</em></li>
+        </ol>
+
+        <div class="activity">
+          <p class="eyebrow">Live activity</p>
+          <ul id="activityLog" class="activity-log"></ul>
+        </div>
+      </section>
+
+      <section class="feed" aria-live="polite">
+        <div id="emptyState" class="empty">
+          <h1>Follow the astonishment as it forms</h1>
+          <p>
+            Hit Start scout. Watch research steps land in the rail, then read
+            each insight the moment it clears dual-source verification.
+          </p>
+        </div>
+        <div id="insights" class="insights" hidden></div>
+        <div id="errorBox" class="error-box" hidden></div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
