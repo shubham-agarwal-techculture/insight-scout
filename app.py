@@ -179,10 +179,12 @@ def scout_stream() -> StreamingResponse:
 def main() -> None:
     import uvicorn
 
+    host = os.environ.get("INSIGHT_SCOUT_HOST", "127.0.0.1")
+    port = int(os.environ.get("INSIGHT_SCOUT_PORT", "8765"))
     uvicorn.run(
         "app:app",
-        host="127.0.0.1",
-        port=8765,
+        host=host,
+        port=port,
         reload=False,
     )
 

@@ -216,6 +216,7 @@ function buildInsightCard(item, { complete = true, highest = item.n, isLive = fa
   const card = document.createElement("article");
   card.className = "insight-card";
   card.dataset.insightN = String(item.n);
+  card.style.setProperty("--card-i", String((item.n - 1) % 5));
   const isWriting = isLive && !complete && item.n === highest;
   if (isWriting) card.classList.add("writing", "cursor-blink");
 
@@ -236,21 +237,23 @@ function buildInsightCard(item, { complete = true, highest = item.n, isLive = fa
     allowFallback: Boolean(item.image) && !(isLive && generatedImages.has(item.n)),
   });
   const hasImage = Boolean(imageBlock);
+  const num = String(item.n).padStart(2, "0");
 
   card.innerHTML = `
-    <div class="insight-card-header">
-      <span class="insight-badge">${String(item.n).padStart(2, "0")}</span>
+    <span class="insight-watermark" aria-hidden="true">${num}</span>
+    <header class="insight-card-header">
+      <span class="insight-badge">Insight ${num}</span>
       <h2>${escapeHtml(item.title)}</h2>
-    </div>
+    </header>
     <div class="insight-card-body">
-      <div class="insight-layout${hasImage ? " has-image" : ""}">
-        ${hasImage ? `<div class="insight-media">${imageBlock}</div>` : ""}
-        <div class="insight-sections">
-          ${takeawayHtml(item.takeaway)}
+      ${hasImage ? `<div class="insight-hero">${imageBlock}</div>` : ""}
+      <div class="insight-prose">
+        ${takeawayHtml(item.takeaway)}
+        <div class="insight-details">
           ${howIsSameAsTakeaway ? "" : bodySectionHtml("How it works", item.how)}
-          ${proofHtml(item.proof)}
-          ${bodySectionHtml("Easy to miss because", item.miss, { compact: true })}
+          ${bodySectionHtml("Why you'd miss it", item.miss, { compact: true })}
         </div>
+        ${proofHtml(item.proof)}
       </div>
     </div>
   `;
@@ -266,10 +269,9 @@ function takeawayHtml(text) {
   if (!text) return "";
   const clean = stripLeadingBullets(text);
   return `
-    <div class="section takeaway">
-      <strong>In short</strong>
+    <blockquote class="takeaway">
       <p>${inlineMarkdown(clean)}</p>
-    </div>
+    </blockquote>
   `;
 }
 
@@ -296,7 +298,7 @@ function proofHtml(text) {
   if (links.length) {
     return `
       <div class="section sources">
-        <strong>Proof</strong>
+        <strong>Sources</strong>
         <ul class="source-list">
           ${links
             .map(
@@ -308,7 +310,7 @@ function proofHtml(text) {
       </div>
     `;
   }
-  return bodySectionHtml("Proof", text);
+  return bodySectionHtml("Sources", text);
 }
 
 function parseBulletLines(text) {
@@ -409,12 +411,12 @@ function onAiImageFallback(img, insightN) {
   }
   const title = card.querySelector("h2")?.textContent?.trim() || "";
   const twist =
+    card.querySelector(".takeaway p")?.textContent?.trim() ||
     [...card.querySelectorAll(".section")]
-      .find((s) => {
-        const label = s.querySelector("strong")?.textContent || "";
-        return label === "In short" || label === "The twist" || label === "How it works";
-      })
-      ?.querySelector("p, li")?.textContent?.trim() || "";
+      .find((s) => s.querySelector("strong")?.textContent === "How it works")
+      ?.querySelector("p, li")
+      ?.textContent?.trim() ||
+    "";
   const figure = img.closest("figure");
   figure.classList.add("is-generating");
   figure.innerHTML = `<div class="image-placeholder">Generating visual…</div>`;
@@ -435,7 +437,7 @@ async function requestAiImage(item) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: item.title,
-        twist: item.takeaway || item.how || "",
+        twist: item.twist || item.takeaway || item.how || "",
         insight_n: n,
       }),
     });
@@ -556,6 +558,7 @@ function finishRun(ok) {
   scoutBtn.querySelector(".cta-label").textContent = ok
     ? "Scout again"
     : "Try again";
+  if (ok) phaseLabel.textContent = "Edition complete";
   if (ok) setStatusChip("done");
 }
 
@@ -565,6 +568,7 @@ async function startScout() {
   scoutBtn.classList.add("running");
   if (btnSpinner) btnSpinner.hidden = false;
   scoutBtn.querySelector(".cta-label").textContent = "Scouting…";
+  phaseLabel.textContent = "Research in progress";
   setPhase("starting");
 
   let response;
@@ -642,13 +646,13 @@ function switchView(view) {
   historyView.hidden = view !== "history";
 
   if (view === "live") {
-    pageTitle.textContent = "Live scout";
+    pageTitle.textContent = "Insight Scout";
     pageSubtitle.textContent =
-      "Agent research with real-time progress and verified output";
+      "Five verified insights from cross-checked research — streamed as they're written";
   } else {
-    pageTitle.textContent = "Run archive";
+    pageTitle.textContent = "Archive";
     pageSubtitle.textContent =
-      "Browse past scout runs stored on this machine";
+      "Past editions saved on this machine — open any run to read its insights again";
     loadHistory();
   }
 }
@@ -695,22 +699,24 @@ function renderHistoryList() {
   historyDetail.hidden = true;
 
   for (const run of historyRuns) {
-    const tr = document.createElement("tr");
+    const li = document.createElement("li");
     const topics = (run.titles || [])
+      .slice(0, 3)
       .map((t) => `<li>${escapeHtml(t)}</li>`)
       .join("");
+    const count = run.insight_count || 0;
 
-    tr.innerHTML = `
-      <td class="cell-date">${escapeHtml(formatRunDate(run.created_at))}</td>
-      <td class="cell-count">${run.insight_count || 0}</td>
-      <td class="cell-topics"><ul>${topics}</ul></td>
-      <td>
-        <button type="button" class="btn-text">View</button>
-      </td>
+    li.innerHTML = `
+      <div class="archive-entry">
+        <p class="archive-date">${escapeHtml(formatRunDate(run.created_at))}</p>
+        <p class="archive-meta">${count} insight${count === 1 ? "" : "s"}</p>
+        ${topics ? `<ul class="archive-topics">${topics}</ul>` : ""}
+      </div>
+      <button type="button" class="btn-text">Read edition</button>
     `;
 
-    tr.querySelector(".btn-text").addEventListener("click", () => openHistoryRun(run.id));
-    historyList.appendChild(tr);
+    li.querySelector(".btn-text").addEventListener("click", () => openHistoryRun(run.id));
+    historyList.appendChild(li);
   }
 }
 
