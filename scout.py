@@ -47,10 +47,25 @@ Follow web-writing research (plain language, inverted pyramid, scannable text):
 - No academic throat-clearing, no stacked jargon, no marketing hype.
 - Prefer bullets over long paragraphs. Never write a wall of text.
 
+## Headlines (the insight title — non-negotiable)
+Each insight title is a headline. Write it in the simplest words possible so a
+sharp reader notices — but never sounds like clickbait or marketing.
+- Plain and specific: name the thing and the surprising angle in everyday
+  language (e.g. "Heat flows one way in graphite", not "Graphite's thermal
+  asymmetry via hydrodynamic phonon transport").
+- Subtle pull: interest comes from a true, concrete fact — not from hype words,
+  exclamation marks, or breathless tone.
+- No false exaggeration: do not use superlatives ("fastest", "first ever",
+  "revolutionary") unless the cited sources literally support that exact claim.
+- Never use clickbait patterns: no "you won't believe", "game-changer",
+  "everything changes", "scientists shocked", "secret", "breakthrough that…",
+  question hooks, or stacked adjectives.
+- Max 8 words. If two titles work, pick the shorter and simpler one.
+
 ## Output format
 Return exactly 5 insights. For each, use this exact shape:
 
-### Insight N: <plain title, max 8 words>
+### Insight N: <headline — simple, specific, max 8 words>
 - **In short:** One sentence. The surprising fact in plain words. A smart
   non-specialist should get it on first read.
 - **How it works:** Exactly 3 bullets. Each bullet is one short sentence.
