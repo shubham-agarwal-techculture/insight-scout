@@ -15,7 +15,7 @@ import httpx
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 8765
+DEFAULT_PORT = 8769
 DEFAULT_INTERVAL_SEC = 3600
 HEALTH_TIMEOUT_SEC = 90
 HEALTH_POLL_SEC = 0.5
@@ -66,7 +66,9 @@ def format_event(payload: dict) -> str | None:
     if event_type == "phase":
         return f"phase · {payload.get('phase')} · {payload.get('detail', '')}".strip()
     if event_type == "started":
-        return f"started · agent {payload.get('agent_id')} · run {payload.get('run_id')}"
+        return (
+            f"started · agent {payload.get('agent_id')} · run {payload.get('run_id')}"
+        )
     if event_type == "tool":
         return f"tool · {payload.get('name')} · {payload.get('status')}"
     if event_type == "status":
@@ -170,7 +172,9 @@ def main() -> int:
                     exit_code = 1
 
                 if args.once:
-                    log("Initial scout complete (--once). Press Ctrl+C to stop the server.")
+                    log(
+                        "Initial scout complete (--once). Press Ctrl+C to stop the server."
+                    )
                     while server.poll() is None:
                         time.sleep(1)
                     break

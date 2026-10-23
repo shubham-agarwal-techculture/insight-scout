@@ -100,7 +100,7 @@ The app loads `.env` automatically via `python-dotenv`. You can also set the var
 
 Then open:
 
-**http://127.0.0.1:8765**
+**http://127.0.0.1:8769**
 
 Click **Start scout**. The left rail shows status and live activity; the main panel fills with insight cards as the agent writes them.
 

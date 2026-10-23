@@ -17,7 +17,13 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from history_store import all_previous_insights, delete_run, get_run, list_runs, save_run
+from history_store import (
+    all_previous_insights,
+    delete_run,
+    get_run,
+    list_runs,
+    save_run,
+)
 from image_gen import GENERATED_DIR_NAME, generate_insight_image, image_provider
 from scout import iter_scout_events
 
@@ -31,7 +37,7 @@ GENERATED.mkdir(parents=True, exist_ok=True)
 
 def _browser_url() -> str:
     host = os.environ.get("INSIGHT_SCOUT_HOST", "127.0.0.1")
-    port = os.environ.get("INSIGHT_SCOUT_PORT", "8765")
+    port = os.environ.get("INSIGHT_SCOUT_PORT", "8769")
     if host in ("0.0.0.0", "::"):
         host = "127.0.0.1"
     return f"http://{host}:{port}"
@@ -209,7 +215,7 @@ def main() -> None:
     import uvicorn
 
     host = os.environ.get("INSIGHT_SCOUT_HOST", "127.0.0.1")
-    port = int(os.environ.get("INSIGHT_SCOUT_PORT", "8765"))
+    port = int(os.environ.get("INSIGHT_SCOUT_PORT", "8769"))
     uvicorn.run(
         "app:app",
         host=host,
